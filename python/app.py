@@ -82,7 +82,8 @@ def dbh():
         return flask.g.db
 
     flask.g.db = MySQLdb.connect(
-        host=os.getenv('MYSQL_HOST', '127.0.0.1'),
+        # host=os.getenv('MYSQL_HOST', '127.0.0.1'),
+        host=os.getenv('MYSQL_HOST', '192.168.137.150'),
         port=int(os.getenv('MYSQL_PORT', 3306)),
         user=os.getenv('MYSQL_USER', 'isucari'),
         password=os.getenv('MYSQL_PASS', 'isucari'),
@@ -171,6 +172,7 @@ def cache_category_by_id():
         for rs in result:
             redis_category.set(rs["id"], str(rs))
 
+    redis_category.close()
 
 def get_category_by_id(category_id):
     # conn = dbh()
@@ -187,6 +189,7 @@ def get_category_by_id(category_id):
         parent = get_category_by_id(category['parent_id'])
         if parent is not None:
             category['parent_category_name'] = parent['category_name']
+    redis_category.close()
     return category
 
 
@@ -267,7 +270,7 @@ def get_image_url(image_name):
 def post_initialize():
     conn = dbh()
 
-    # subprocess.call(["../sql/init.sh"])
+    subprocess.call(["../sql/init.sh"])
 
     payment_service_url = flask.request.json.get('payment_service_url', Constants.DEFAULT_PAYMENT_SERVICE_URL)
     shipment_service_url = flask.request.json.get('shipment_service_url', Constants.DEFAULT_SHIPMENT_SERVICE_URL)
@@ -401,7 +404,8 @@ def get_new_category_items(root_category_id=None):
     with conn.cursor() as c:
         try:
             if item_id > 0 and created_at > 0:
-                sql = "SELECT IT.* FROM `categories` as CT INNER JOIN items as IT ON IT.category_id = CT.id where CT.parent_id = %s and IT.status IN (%s, %s) and (IT.created_at < %s or (IT.created_at < %s and IT.id < %s)) order by IT.created_at DESC, IT.id DESC LIMIT %s"
+                # sql = "SELECT IT.* FROM `categories` as CT INNER JOIN items as IT ON IT.category_id = CT.id where CT.parent_id = %s and IT.status IN (%s, %s) and (IT.created_at < %s or (IT.created_at < %s and IT.id < %s)) order by IT.created_at DESC, IT.id DESC LIMIT %s"
+                sql = "SELECT IT.*, US.id as user_id, US.account_name as account_name, US.address as address, US.num_sell_items as num_sell_items FROM `items` as IT INNER JOIN `categories` as CT ON IT.category_id = CT.id INNER JOIN `users` as US ON IT.seller_id = US.id where CT.parent_id = %s and IT.status IN (%s, %s) and (IT.created_at < %s or (IT.created_at < %s and IT.id < %s)) order by IT.created_at DESC, IT.id DESC LIMIT %s"
                 c.execute(sql, (
                     root_category_id,
                     Constants.ITEM_STATUS_ON_SALE,
@@ -412,7 +416,8 @@ def get_new_category_items(root_category_id=None):
                     Constants.ITEMS_PER_PAGE + 1,
                 ))
             else:
-                sql = "SELECT IT.* FROM `categories` as CT INNER JOIN items as IT ON IT.category_id = CT.id where CT.parent_id = %s and IT.status IN (%s, %s) order by IT.created_at DESC, IT.id DESC LIMIT %s"
+                # sql = "SELECT IT.*, US.id as user_id, US.account_name as account_name, US.address as address, US.num_sell_items as num_sell_items FROM `categories` as CT INNER JOIN items as IT ON IT.category_id = CT.id where CT.parent_id = %s and IT.status IN (%s, %s) order by IT.created_at DESC, IT.id DESC LIMIT %s"
+                sql = "SELECT IT.*, US.id as user_id, US.account_name as account_name, US.address as address, US.num_sell_items as num_sell_items FROM `items` as IT INNER JOIN `categories` as CT ON IT.category_id = CT.id INNER JOIN `users` as US ON IT.seller_id = US.id where CT.parent_id = %s and IT.status IN (%s, %s) order by IT.created_at DESC, IT.id DESC LIMIT %s"
                 c.execute(sql, (
                     root_category_id,
                     Constants.ITEM_STATUS_ON_SALE,
@@ -428,11 +433,17 @@ def get_new_category_items(root_category_id=None):
                 if item is None:
                     break
 
-                seller = get_user_simple_by_id(item["seller_id"])
+                # seller = get_user_simple_by_id(item["seller_id"])
                 category = get_category_by_id(item["category_id"])
 
                 item["category"] = category
-                item["seller"] = to_user_json(seller)
+                # item["seller"] = to_user_json(seller)
+                item["seller"] = {
+                        "id": item["user_id"],
+                        "account_name": item["account_name"],
+                        "address": item["address"],
+                        "num_sell_items": item["num_sell_items"]
+                        }
                 item["image_url"] = get_image_url(item["image_name"])
                 item = to_item_json(item, simple=True)
 
