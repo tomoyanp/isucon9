@@ -1,0 +1,18 @@
+[Unit]
+Description = isucon9 qualifier main application in python
+
+[Service]
+WorkingDirectory=/home/ubuntu/go/src/github.com/isucon/isucon9-qualify/webapp/python
+EnvironmentFile=/home/ubuntu/go/src/github.com/isucon/isucon9-qualify/webapp/server/env.sh
+
+ExecStart = /home/isucon/isucari/webapp/python/venv/bin/gunicorn app:app -w 8 --worker-connections 1000 -b '192.168.137.150:8000' --keep-alive 120 --log-file /var/log/gunicorn/gunicorn.log --log-level debug --error-logfile /var/log/gunicorn/error.log --capture-output --enable-stdio-inheritance
+Restart   = always
+Type      = simple
+# User      = isucon
+# Group     = isucon
+User      = root
+Group     = root
+
+
+[Install]
+WantedBy = multi-user.target

@@ -74,7 +74,7 @@ class HttpException(Exception):
         return response
 
 def get_redis_category():
-    return redis.Redis(host="localhost", port=6379, db=0)
+    return redis.Redis(host="192.168.137.150", port=6379, db=0)
 
 
 def dbh():
